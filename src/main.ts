@@ -8,10 +8,10 @@ export type {
   Item,
   TextItem,
 } from "@vwkd/feed";
-export type { AggregatorItem } from "./types.ts";
+export type { AggregatorItem, SharedDate } from "./types.ts";
 import { Feed, type FeedInfo } from "@vwkd/feed";
 import { equal } from "@std/assert";
-import type { AggregatorItem } from "./types.ts";
+import type { AggregatorItem, SharedDate } from "./types.ts";
 
 const DENO_KV_MAX_BATCH_SIZE = 1000;
 
@@ -29,7 +29,7 @@ export class FeedAggregator {
   #kv: Deno.Kv;
   #prefix: string[];
   #info: FeedInfo;
-  #now: Date;
+  #currentDate?: SharedDate;
   #itemsCached: AggregatorItem[] = [];
   #itemsAdded: AggregatorItem[] = [];
 
@@ -39,18 +39,18 @@ export class FeedAggregator {
    * @param kv Deno KV store
    * @param prefix prefix for keys
    * @param info info of feed
-   * @param now current date
+   * @param currentDate current date
    */
   constructor(
     kv: Deno.Kv,
     prefix: string[],
     info: FeedInfo,
-    now: Date = new Date(),
+    currentDate?: SharedDate,
   ) {
     this.#kv = kv;
     this.#prefix = prefix;
     this.#info = info;
-    this.#now = now;
+    this.#currentDate = currentDate;
   }
 
   /**
@@ -59,12 +59,15 @@ export class FeedAggregator {
    * - in case Deno KV hasn't deleted them yet
    * - in case items have expired since created instance or added
    * - beware: must be called first and every time!
+   * - note: take `now` as argument to avoid slight time gap
+   *
+   * @param now current date
    */
-  #clean(): void {
+  #clean(now: Date): void {
     this.#itemsCached = this.#itemsCached
-      .filter(({ expireAt }) => !expireAt || expireAt > this.#now);
+      .filter(({ expireAt }) => !expireAt || expireAt > now);
     this.#itemsAdded = this.#itemsAdded
-      .filter(({ expireAt }) => !expireAt || expireAt > this.#now);
+      .filter(({ expireAt }) => !expireAt || expireAt > now);
   }
 
   /**
@@ -106,12 +109,14 @@ export class FeedAggregator {
    * @throws {Error} if `shouldApproximateDate` is `true` but item already has published or modified date
    */
   async add(...items: AggregatorItem[]): Promise<void> {
+    const now = this.#currentDate?.value || new Date();
+
     if (!this.#initialized) {
       await this.#init();
       this.#initialized = true;
     }
 
-    this.#clean();
+    this.#clean(now);
 
     for (const { item: _item, expireAt, shouldApproximateDate } of items) {
       // clone to avoid modifying input arguments
@@ -121,7 +126,7 @@ export class FeedAggregator {
         throw new Error(`Item with ID '${item.id}' already added`);
       }
 
-      if (expireAt && expireAt <= this.#now) {
+      if (expireAt && expireAt <= now) {
         throw new Error(
           `Expiry date for item with ID '${item.id}' is not in future`,
         );
@@ -164,7 +169,7 @@ export class FeedAggregator {
           }
 
           item.date_published = existingItem.item.date_published;
-          item.date_modified = this.#now.toISOString();
+          item.date_modified = now.toISOString();
         }
 
         // don't use existing item
@@ -173,7 +178,7 @@ export class FeedAggregator {
         );
       } else {
         if (shouldApproximateDate) {
-          item.date_published = this.#now.toISOString();
+          item.date_published = now.toISOString();
         }
       }
 
@@ -190,12 +195,14 @@ export class FeedAggregator {
    * @returns JSON of feed
    */
   async toJSON(): Promise<string> {
+    const now = this.#currentDate?.value || new Date();
+
     if (!this.#initialized) {
       await this.#init();
       this.#initialized = true;
     }
 
-    this.#clean();
+    this.#clean(now);
 
     if (this.#itemsAdded.length > 0) {
       // note: `ok` property of result will always be `true` since transaction lacks `.check()`s
@@ -206,7 +213,7 @@ export class FeedAggregator {
           value: item,
           type: "set" as const,
           expireIn: item.expireAt &&
-            (item.expireAt.getTime() - this.#now.getTime()),
+            (item.expireAt.getTime() - now.getTime()),
         })))
         .commit();
     }
