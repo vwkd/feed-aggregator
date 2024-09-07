@@ -1,50 +1,68 @@
 import { assertEquals } from "@std/assert";
 import { FeedAggregator } from "../src/main.ts";
 
-const kv = await Deno.openKv(":memory:");
+const PREFIX = ["my", "example", "feed"];
 
-Deno.test("three items", async () => {
-  const info = {
-    title: "My Example Feed",
-    home_page_url: "https://example.org",
-    feed_url: "https://example.org/feed.json",
-  };
+const VERSION = "https://jsonfeed.org/version/1.1";
+const INFO = {
+  title: "My Example Feed",
+  home_page_url: "https://example.org",
+  feed_url: "https://example.org/feed.json",
+};
 
-  const prefix = ["three", "items"];
+const ITEM1 = {
+  id: "1",
+  content_html: "<p>Hello, world!</p>",
+  url: "https://example.org/initial-post",
+};
 
-  const feed = new FeedAggregator(kv, prefix, info);
+const ITEM2 = {
+  id: "2",
+  content_text: "This is a second item.",
+  url: "https://example.org/second-item",
+};
 
-  const items = [
-    {
-      id: "1",
-      content_html: "<p>Hello, world!</p>",
-      url: "https://example.org/initial-post",
-    },
-    {
-      id: "2",
-      content_text: "This is a second item.",
-      url: "https://example.org/second-item",
-    },
-    {
-      id: "3",
-      content_html: "<p>This is a third item.</p>",
-      content_text: "This is a third item.",
-      url: "https://example.org/third-item",
-    },
-  ];
+const ITEM3 = {
+  id: "3",
+  content_html: "<p>This is a third item.</p>",
+  content_text: "This is a third item.",
+  url: "https://example.org/third-item",
+};
 
-  const itemsWithExpiry = items.map((item) => ({ item }));
+const EXPECTED = JSON.stringify({
+  version: VERSION,
+  ...INFO,
+  items: [ITEM1, ITEM2, ITEM3],
+});
 
-  await feed.add(...itemsWithExpiry);
+Deno.test("add", async () => {
+  const kv = await Deno.openKv(":memory:");
 
-  const version = "https://jsonfeed.org/version/1.1";
-  const expected = JSON.stringify({
-    version,
-    ...info,
-    items,
-  });
+  const feed = new FeedAggregator(kv, PREFIX, INFO);
+  await feed.add({ item: ITEM1 });
+  await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
 
   const actual = await feed.toJSON();
 
-  assertEquals(actual, expected);
+  kv.close();
+
+  assertEquals(actual, EXPECTED);
+});
+
+Deno.test("persist", async () => {
+  const kv = await Deno.openKv(":memory:");
+
+  const feed = new FeedAggregator(kv, PREFIX, INFO);
+  await feed.add({ item: ITEM1 });
+  await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
+
+  const _actual = await feed.toJSON();
+
+  const feed2 = new FeedAggregator(kv, PREFIX, INFO);
+
+  const actual = await feed2.toJSON();
+
+  kv.close();
+
+  assertEquals(actual, EXPECTED);
 });
