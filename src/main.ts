@@ -74,12 +74,12 @@ export class FeedAggregator {
   }
 
   /**
-   * Initialize cached items from database
+   * Read cached items from database
    *
    * - beware: might get expired items, run `clean()` before using!
    * - beware: must be called first!
    */
-  async #init(): Promise<void> {
+  async #read(): Promise<void> {
     // run only once
     if (this.#initialized) {
       return;
@@ -157,7 +157,7 @@ export class FeedAggregator {
   async add(...items: AggregatorItem[]): Promise<void> {
     const now = this.#currentDate?.value || new Date();
 
-    await this.#init();
+    await this.#read();
 
     this.#clean(now);
 
@@ -240,7 +240,7 @@ export class FeedAggregator {
   async toJSON(): Promise<string> {
     const now = this.#currentDate?.value || new Date();
 
-    await this.#init();
+    await this.#read();
 
     this.#clean(now);
 
