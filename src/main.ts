@@ -8,10 +8,10 @@ export type {
   Item,
   TextItem,
 } from "@vwkd/feed";
-export type { AggregatorItem, SharedDate } from "./types.ts";
+export type { AggregatorItem, Options, SharedDate } from "./types.ts";
 import { Feed, type FeedInfo } from "@vwkd/feed";
 import { equal } from "@std/assert";
-import type { AggregatorItem, SharedDate } from "./types.ts";
+import type { AggregatorItem, Options, SharedDate } from "./types.ts";
 
 const DENO_KV_MAX_BATCH_SIZE = 1000;
 
@@ -39,14 +39,16 @@ export class FeedAggregator {
    * @param kv Deno KV store
    * @param prefix prefix for keys
    * @param info info of feed
-   * @param currentDate current date
+   * @param options options
    */
   constructor(
     kv: Deno.Kv,
     prefix: string[],
     info: FeedInfo,
-    currentDate?: SharedDate,
+    options: Options = {},
   ) {
+    const { currentDate } = options;
+
     this.#kv = kv;
     this.#prefix = prefix;
     this.#info = info;
