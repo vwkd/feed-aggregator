@@ -11,6 +11,7 @@ export type {
 export type { AggregatorItem, Options, SharedDate } from "./types.ts";
 import { Feed, type FeedInfo } from "@vwkd/feed";
 import { equal } from "@std/assert";
+import { chunk } from "@std/collections";
 import type { AggregatorItem, Options, SharedDate } from "./types.ts";
 
 const DENO_KV_MAX_BATCH_SIZE = 1000;
@@ -99,6 +100,42 @@ export class FeedAggregator {
     this.#itemsCached = items;
 
     this.#initialized = true;
+  }
+
+  /**
+   * Write added items to database
+   *
+   * - remove added items
+   * - note: take `now` as argument to avoid slight time gap
+   *
+   * @param now current date
+   */
+  async #write(now: Date): Promise<void> {
+    if (this.#itemsAdded.length == 0) {
+      return;
+    }
+
+    const items = this.#itemsAdded.map((item) => ({
+      key: [...this.#prefix, item.item.id],
+      value: item,
+      type: "set" as const,
+      expireIn: item.expireAt &&
+        (item.expireAt.getTime() - now.getTime()),
+    }));
+
+    const itemsChunks = chunk(items, DENO_KV_MAX_BATCH_SIZE);
+
+    // beware: not guaranteed to be consistent between chunks!
+    for (const itemsChunk of itemsChunks) {
+      // note: `ok` property of result will always be `true` since transaction lacks `.check()`s
+      await this.#kv
+        .atomic()
+        .mutate(...itemsChunk)
+        .commit();
+    }
+
+    this.#itemsCached = [...this.#itemsCached, ...this.#itemsAdded];
+    this.#itemsAdded = [];
   }
 
   /**
@@ -207,19 +244,7 @@ export class FeedAggregator {
 
     this.#clean(now);
 
-    if (this.#itemsAdded.length > 0) {
-      // note: `ok` property of result will always be `true` since transaction lacks `.check()`s
-      await this.#kv
-        .atomic()
-        .mutate(...this.#itemsAdded.map((item) => ({
-          key: [...this.#prefix, item.item.id],
-          value: item,
-          type: "set" as const,
-          expireIn: item.expireAt &&
-            (item.expireAt.getTime() - now.getTime()),
-        })))
-        .commit();
-    }
+    await this.#write(now);
 
     const feed = new Feed(this.#info);
 
