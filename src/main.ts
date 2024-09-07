@@ -22,7 +22,7 @@ const DENO_KV_MAX_BATCH_SIZE = 1000;
  * - caches added items with optional expiry if not already identical in database
  * - beware: existing items that aren't in added items anymore and have no expiry won't be deleted from database forever!
  * - beware: order of items in feed isn't guaranteed since database returns in lexicographical order of keys
- * - beware: expiry is earliest time after which Deno KV deletes items, may get slightly expired ones but doesn't matter, don't bother to do deletion work manually!
+ * - beware: expiry is earliest time after which Deno KV deletes items, filter out expired ones, don't bother to delete manually, Deno KV will delete eventually!
  */
 export class FeedAggregator {
   #initialized = false;
@@ -54,9 +54,23 @@ export class FeedAggregator {
   }
 
   /**
+   * Clean up expired items if any
+   *
+   * - in case Deno KV hasn't deleted them yet
+   * - in case items have expired since created instance or added
+   * - beware: must be called first and every time!
+   */
+  #clean(): void {
+    this.#itemsCached = this.#itemsCached
+      .filter(({ expireAt }) => !expireAt || expireAt > this.#now);
+    this.#itemsAdded = this.#itemsAdded
+      .filter(({ expireAt }) => !expireAt || expireAt > this.#now);
+  }
+
+  /**
    * Initialize cached items from database
    *
-   * - filter out expired items, will get deleted by Deno KV eventually
+   * - beware: might get expired items, run `clean()` before using!
    * - beware: must be called first and only once!
    */
   async #init(): Promise<void> {
@@ -72,10 +86,7 @@ export class FeedAggregator {
     const items = entries
       .map((item) => item.value);
 
-    const itemsWithoutExpired = items
-      .filter(({ expireAt }) => !expireAt || expireAt > this.#now);
-
-    this.#itemsCached = itemsWithoutExpired;
+    this.#itemsCached = items;
   }
 
   /**
@@ -99,6 +110,8 @@ export class FeedAggregator {
       await this.#init();
       this.#initialized = true;
     }
+
+    this.#clean();
 
     for (const { item: _item, expireAt, shouldApproximateDate } of items) {
       // clone to avoid modifying input arguments
@@ -181,6 +194,8 @@ export class FeedAggregator {
       await this.#init();
       this.#initialized = true;
     }
+
+    this.#clean();
 
     if (this.#itemsAdded.length > 0) {
       // note: `ok` property of result will always be `true` since transaction lacks `.check()`s
