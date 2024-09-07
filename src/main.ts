@@ -74,9 +74,14 @@ export class FeedAggregator {
    * Initialize cached items from database
    *
    * - beware: might get expired items, run `clean()` before using!
-   * - beware: must be called first and only once!
+   * - beware: must be called first!
    */
   async #init(): Promise<void> {
+    // run only once
+    if (this.#initialized) {
+      return;
+    }
+
     // beware: not guaranteed to be consistent between batches!
     const entriesIterator = this.#kv.list<AggregatorItem>({
       prefix: this.#prefix,
@@ -90,6 +95,8 @@ export class FeedAggregator {
       .map((item) => item.value);
 
     this.#itemsCached = items;
+
+    this.#initialized = true;
   }
 
   /**
@@ -111,10 +118,7 @@ export class FeedAggregator {
   async add(...items: AggregatorItem[]): Promise<void> {
     const now = this.#currentDate?.value || new Date();
 
-    if (!this.#initialized) {
-      await this.#init();
-      this.#initialized = true;
-    }
+    await this.#init();
 
     this.#clean(now);
 
@@ -197,10 +201,7 @@ export class FeedAggregator {
   async toJSON(): Promise<string> {
     const now = this.#currentDate?.value || new Date();
 
-    if (!this.#initialized) {
-      await this.#init();
-      this.#initialized = true;
-    }
+    await this.#init();
 
     this.#clean(now);
 
