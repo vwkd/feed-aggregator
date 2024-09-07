@@ -39,12 +39,18 @@ export class FeedAggregator {
    * @param kv Deno KV store
    * @param prefix prefix for keys
    * @param info info of feed
+   * @param now current date
    */
-  constructor(kv: Deno.Kv, prefix: string[], info: FeedInfo) {
+  constructor(
+    kv: Deno.Kv,
+    prefix: string[],
+    info: FeedInfo,
+    now: Date = new Date(),
+  ) {
     this.#kv = kv;
     this.#prefix = prefix;
     this.#info = info;
-    this.#now = new Date();
+    this.#now = now;
   }
 
   /**
