@@ -140,7 +140,7 @@ export class FeedAggregator {
    * Add one or more items to the feed
    *
    * - errors if item with same ID already added previously
-   * - errors if `expireAt` is in the past
+   * - ignores item if `expireAt` is in the past
    * - if item with same ID is already in cache
    *   - errors if `shouldApproximateDate` is different
    *   - if item is identical, ignores added item, takes existing item from cache
@@ -168,9 +168,7 @@ export class FeedAggregator {
       }
 
       if (expireAt && expireAt <= now) {
-        throw new Error(
-          `Expiry date for item with ID '${item.id}' is not in future`,
-        );
+        continue;
       }
 
       // todo: remove `date_modified`?
