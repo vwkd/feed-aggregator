@@ -72,8 +72,6 @@ Deno.test("persist", async () => {
     ...[ITEM2, ITEM3].map((item) => ({ item, expireAt: dateInFuture })),
   );
 
-  const _actual = await feed.toJSON();
-
   await delay(DELAY_MS * 2);
 
   const feed2 = new FeedAggregator(kv, PREFIX, INFO);
