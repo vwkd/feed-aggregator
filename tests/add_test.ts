@@ -56,8 +56,6 @@ Deno.test("persist", async () => {
   await feed.add({ item: ITEM1 });
   await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
 
-  const _actual = await feed.toJSON();
-
   const feed2 = new FeedAggregator(kv, PREFIX, INFO);
 
   const actual = await feed2.toJSON();

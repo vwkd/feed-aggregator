@@ -187,6 +187,7 @@ export class FeedAggregator {
    *     - takes added item, will overwrite existing item in feed
    *     - if `shouldApproximateDate` uses published date of existing item and current date as modified date
    * - if `shouldApproximateDate` uses current date as published date
+   * - store added items in database
    *
    * @param items items to add
    * @throws {Error} if item with same ID already added
@@ -287,12 +288,13 @@ export class FeedAggregator {
 
       this.#itemsAdded.push({ item, expireAt, shouldApproximateDate });
     }
+
+    await this.#write(now);
   }
 
   /**
    * Serialize feed
    *
-   * - store added items in database
    * - add all items to feed and return it as JSON
    *
    * @returns JSON of feed
@@ -305,8 +307,6 @@ export class FeedAggregator {
     await this.#read();
 
     this.#clean(now);
-
-    await this.#write(now);
 
     const feed = new Feed(this.#info);
 
