@@ -73,23 +73,9 @@ const kv = await openKv(":memory:");
 
 ### Activate logging
 
-- add [`@std/log`](https://jsr.io/@std/log) package
-- set up `feed-aggregator` logger
-- beware: must call `setup` before `FeedAggregator`!
-- beware: see [`@std/log`](https://jsr.io/@std/log) for compatibility with runtimes other than Deno!
-
 ```js
-import { ConsoleHandler, setup } from "@std/log";
+import { logger } from "@vwkd/feed-aggregator";
 
-setup({
-  handlers: {
-    console: new ConsoleHandler("INFO"),
-  },
-  loggers: {
-    "feed-aggregator": {
-      level: "INFO",
-      handlers: ["console"],
-    },
-  },
-});
+logger.setLevel("debug");
+// logger.setLevel("silent");
 ```
