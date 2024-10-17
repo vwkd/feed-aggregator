@@ -63,10 +63,20 @@ await feed.add(
 const json = await feed.toJSON();
 ```
 
+- add [`@deno/kv`](https://www.npmjs.com/package/@deno/kv) package for runtimes other than Deno
+
+```js
+import { openKv } from "@deno/kv";
+
+const kv = await openKv(":memory:");
+```
+
 ### Activate logging
 
-- set up `feed-aggregator` logger in `setup`
+- add [`@std/log`](https://jsr.io/@std/log) package
+- set up `feed-aggregator` logger
 - beware: must call `setup` before `FeedAggregator`!
+- beware: see [`@std/log`](https://jsr.io/@std/log) for compatibility with runtimes other than Deno!
 
 ```js
 import { ConsoleHandler, setup } from "@std/log";
