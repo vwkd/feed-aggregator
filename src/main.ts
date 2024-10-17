@@ -12,11 +12,14 @@ export type { AggregatorItem, Options, SharedDate } from "./types.ts";
 import { Feed, type FeedInfo } from "@vwkd/feed";
 import { equal } from "@std/assert";
 import { chunk } from "@std/collections";
-import { getLogger, type Logger } from "@std/log";
+import log from "loglevel";
 import type { AggregatorItem, Options, SharedDate } from "./types.ts";
 
+log.setDefaultLevel("warn");
+
+export { log as logger };
+
 const DENO_KV_MAX_BATCH_SIZE = 1000;
-const LIBRARY_NAME = "feed-aggregator";
 
 /**
  * JSON Feed aggregator using Deno KV
@@ -31,7 +34,6 @@ export class FeedAggregator {
   #kv: Deno.Kv;
   #prefix: string[];
   #info: FeedInfo;
-  #log: Logger;
   #currentDate?: SharedDate;
   #itemsCached: AggregatorItem[] = [];
   #itemsAdded: AggregatorItem[] = [];
@@ -56,10 +58,9 @@ export class FeedAggregator {
     this.#kv = kv;
     this.#prefix = prefix;
     this.#info = info;
-    this.#log = getLogger(LIBRARY_NAME);
     this.#currentDate = currentDate;
 
-    this.#log.info(`Creating feed aggregator`, { prefix, info, options });
+    log.info(`Creating feed aggregator`, { prefix, info, options });
   }
 
   /**
@@ -74,7 +75,7 @@ export class FeedAggregator {
       return;
     }
 
-    this.#log.debug(`Reading items from cache`);
+    log.debug(`Reading items from cache`);
 
     const entriesIterator = this.#kv.list<AggregatorItem>({
       prefix: this.#prefix,
@@ -87,7 +88,7 @@ export class FeedAggregator {
     const items = entries
       .map((item) => item.value);
 
-    this.#log.debug(
+    log.debug(
       `Read ${items.length} item${items.length == 1 ? "" : "s"} from cache`,
     );
 
@@ -119,12 +120,12 @@ export class FeedAggregator {
       return;
     }
 
-    this.#log.debug(
+    log.debug(
       `Cleaning up ${
         this.#itemsCached.length - itemsCached.length
       } expired cached items`,
     );
-    this.#log.debug(
+    log.debug(
       `Cleaning up ${
         this.#itemsAdded.length - itemsAdded.length
       } expired added items`,
@@ -147,7 +148,7 @@ export class FeedAggregator {
       return;
     }
 
-    this.#log.debug(`Writing added items to cache`);
+    log.debug(`Writing added items to cache`);
 
     const items = this.#itemsAdded.map((item) => ({
       key: [...this.#prefix, item.item.id],
@@ -170,7 +171,7 @@ export class FeedAggregator {
     this.#itemsCached = [...this.#itemsCached, ...this.#itemsAdded];
     this.#itemsAdded = [];
 
-    this.#log.debug(
+    log.debug(
       `Wrote ${items.length} item${items.length > 1 ? "s" : ""} to cache`,
     );
   }
@@ -195,7 +196,7 @@ export class FeedAggregator {
   async add(...items: AggregatorItem[]): Promise<void> {
     const now = this.#currentDate?.value || new Date();
 
-    this.#log.debug(
+    log.debug(
       `Adding item${items.length > 1 ? "s" : ""} at ${now.toISOString()}`,
     );
 
@@ -207,14 +208,14 @@ export class FeedAggregator {
       // clone to avoid modifying input arguments
       const item = structuredClone(_item);
 
-      this.#log.debug(`Item`, item);
+      log.debug(`Item`, item);
 
       if (this.#itemsAdded.some(({ item: { id } }) => id == item.id)) {
         throw new Error(`Already added`);
       }
 
       if (expireAt && expireAt <= now) {
-        this.#log.debug(
+        log.debug(
           `Skipping since already expired at ${expireAt.toISOString()}`,
         );
         continue;
@@ -236,7 +237,7 @@ export class FeedAggregator {
       );
 
       if (existingItem) {
-        this.#log.debug(`Existing item`, existingItem.item);
+        log.debug(`Existing item`, existingItem.item);
 
         if (shouldApproximateDate != existingItem.shouldApproximateDate) {
           throw new Error(
@@ -246,7 +247,7 @@ export class FeedAggregator {
 
         // note: not if `shouldApproximateDate` since `date_published` differs since set for existing item but not for added item
         if (equal(existingItem, item)) {
-          this.#log.debug(`Skipping since existing is identical`);
+          log.debug(`Skipping since existing is identical`);
           continue;
         }
 
@@ -257,19 +258,19 @@ export class FeedAggregator {
           // note: if differs only in `date_published`, set for existing item but not for added item
           if (equal(itemRest, existingItemRest)) {
             // don't add already existing item
-            this.#log.debug(`Skipping since existing is identical`);
+            log.debug(`Skipping since existing is identical`);
             continue;
           }
 
           item.date_published = existingItem.item.date_published;
           item.date_modified = now.toISOString();
 
-          this.#log.debug(
+          log.debug(
             `Approximate published date from existing and modified date using current date`,
           );
         }
 
-        this.#log.debug(`Overwriting`);
+        log.debug(`Overwriting`);
 
         // don't use existing item
         this.#itemsCached = this.#itemsCached.filter(({ item: { id } }) =>
@@ -277,11 +278,11 @@ export class FeedAggregator {
         );
       } else {
         if (shouldApproximateDate) {
-          this.#log.debug(`Approximate published date using current date`);
+          log.debug(`Approximate published date using current date`);
           item.date_published = now.toISOString();
         }
 
-        this.#log.debug(`Adding`);
+        log.debug(`Adding`);
       }
 
       this.#itemsAdded.push({ item, expireAt, shouldApproximateDate });
@@ -300,7 +301,7 @@ export class FeedAggregator {
   async toJSON(): Promise<string> {
     const now = this.#currentDate?.value || new Date();
 
-    this.#log.debug(`Get feed as JSON at ${now.toISOString()}`);
+    log.debug(`Get feed as JSON at ${now.toISOString()}`);
 
     await this.#read();
 
