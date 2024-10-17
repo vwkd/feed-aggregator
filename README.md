@@ -71,11 +71,25 @@ import { openKv } from "@deno/kv";
 const kv = await openKv(":memory:");
 ```
 
-### Activate logging
+### Configure logging
+
+- log level defaults to `warn`
+- log level `silent` disables logging
+- change log level for all methods
 
 ```js
 import { logger } from "@vwkd/feed-aggregator";
 
 logger.setLevel("debug");
-// logger.setLevel("silent");
+logger.rebuild();
+```
+
+- change log level for specific method, e.g. `add`
+
+```js
+import { logger } from "@vwkd/feed-aggregator";
+
+const logAdd = logger.getLogger("add");
+logAdd.setLevel("debug");
+logAdd.rebuild();
 ```
