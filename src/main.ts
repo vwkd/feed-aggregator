@@ -155,7 +155,7 @@ export class FeedAggregator {
     logWrite.debug(`Writing added items to cache`);
 
     const items = this.#itemsAdded.map((item) => ({
-      key: [...this.#prefix, item.item.id],
+      key: [...this.#prefix, ...(item.subprefix ?? []), item.item.id],
       value: item,
       type: "set" as const,
       expireIn: item.expireAt &&
@@ -208,7 +208,9 @@ export class FeedAggregator {
 
     this.#clean(now);
 
-    for (const { item: _item, expireAt, shouldApproximateDate } of items) {
+    for (
+      const { item: _item, subprefix, expireAt, shouldApproximateDate } of items
+    ) {
       // clone to avoid modifying input arguments
       const item = structuredClone(_item);
 
@@ -289,7 +291,12 @@ export class FeedAggregator {
         logAdd.debug(`Adding`);
       }
 
-      this.#itemsAdded.push({ item, expireAt, shouldApproximateDate });
+      this.#itemsAdded.push({
+        item,
+        subprefix,
+        expireAt,
+        shouldApproximateDate,
+      });
     }
 
     this.#write(now);
