@@ -14,6 +14,8 @@ export interface Options {
 export interface AggregatorItem {
   /** Item */
   item: Item;
+  /** Subprefix for key */
+  subprefix?: string[];
   /** Expiry date of item */
   expireAt?: Date;
   /** Should use current date as published or last modified date */
