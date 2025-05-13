@@ -11,5 +11,10 @@
     "@std/collections": "jsr:@std/collections@^1.0.5",
     "@vwkd/feed": "jsr:@vwkd/feed@^0.0.4",
     "loglevel": "npm:loglevel@^1.9.2"
+  },
+  "publish": {
+    "exclude": [
+      "tests"
+    ]
   }
 }
