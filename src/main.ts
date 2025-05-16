@@ -10,7 +10,6 @@ export type {
 } from "@vwkd/feed";
 export type { AggregatorItem, Options, SharedDate } from "./types.ts";
 import { Feed, type FeedInfo } from "@vwkd/feed";
-import { equal } from "@std/assert";
 import { chunk } from "@std/collections";
 import type { AggregatorItem, Options, SharedDate } from "./types.ts";
 import {
@@ -238,17 +237,11 @@ export class FeedAggregator {
    * Add items to feed
    *
    * - ignores item if `expireAt` is in the past
-   * - if item with same ID is already in feed
-   *   - if item is identical, ignores added item, takes existing item from feed
-   *   - if item is different
-   *     - takes added item, will overwrite existing item in feed
-   *     - if `shouldApproximateDate` uses published date of existing item and current date as modified date
    * - if `shouldApproximateDate` uses current date as published date
    * - store added items in database
    *
    * @param items items to add
-   * @throws {Error} if item with same ID already added
-   * @throws {Error} if item with same ID is already in feed and `shouldApproximateDate` is different
+   * @throws {Error} if item with same ID is already in feed
    * @throws {Error} if `shouldApproximateDate` is `true` but item already has published or modified date
    */
   async add(...items: AggregatorItem[]): Promise<void> {
@@ -270,7 +263,10 @@ export class FeedAggregator {
 
       logAdd.debug(`Item`, item);
 
-      if (this.#itemsAdded.some(({ item: { id } }) => id == item.id)) {
+      if (
+        this.#itemsCached.some(({ item: { id } }) => id == item.id) ||
+        this.#itemsAdded.some(({ item: { id } }) => id == item.id)
+      ) {
         throw new Error(`Already added`);
       }
 
@@ -292,58 +288,12 @@ export class FeedAggregator {
         );
       }
 
-      const existingItem = this.#itemsCached.find(({ item: { id } }) =>
-        id == item.id
-      );
-
-      if (existingItem) {
-        logAdd.debug(`Existing item`, existingItem.item);
-
-        if (shouldApproximateDate != existingItem.shouldApproximateDate) {
-          throw new Error(
-            `Should approximate date ${shouldApproximateDate} differs from existing ${existingItem.shouldApproximateDate}`,
-          );
-        }
-
-        // note: not if `shouldApproximateDate` since `date_published` differs since set for existing item but not for added item
-        if (equal(existingItem, item)) {
-          logAdd.debug(`Skipping since existing is identical`);
-          continue;
-        }
-
-        if (shouldApproximateDate) {
-          const { date_published: _, ...itemRest } = item;
-          const { date_published: __, ...existingItemRest } = existingItem.item;
-
-          // note: if differs only in `date_published`, set for existing item but not for added item
-          if (equal(itemRest, existingItemRest)) {
-            // don't add already existing item
-            logAdd.debug(`Skipping since existing is identical`);
-            continue;
-          }
-
-          item.date_published = existingItem.item.date_published;
-          item.date_modified = now.toISOString();
-
-          logAdd.debug(
-            `Approximate published date from existing and modified date using current date`,
-          );
-        }
-
-        logAdd.debug(`Overwriting`);
-
-        // don't use existing item
-        this.#itemsCached = this.#itemsCached.filter(({ item: { id } }) =>
-          id != item.id
-        );
-      } else {
-        if (shouldApproximateDate) {
-          logAdd.debug(`Approximate published date using current date`);
-          item.date_published = now.toISOString();
-        }
-
-        logAdd.debug(`Adding`);
+      if (shouldApproximateDate) {
+        logAdd.debug(`Approximate published date using current date`);
+        item.date_published = now.toISOString();
       }
+
+      logAdd.debug(`Adding`);
 
       this.#itemsAdded.push({
         item,
