@@ -41,17 +41,15 @@ Deno.test("add", async () => {
     })),
   });
 
-  const kv = await Deno.openKv(":memory:");
-
-  const feed = await createFeedAggregator(kv, PREFIX, INFO, { currentDate });
+  using feed = await createFeedAggregator(":memory:", PREFIX, INFO, {
+    currentDate,
+  });
   await feed.add({ item: ITEM1, shouldApproximateDate: true });
   await feed.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, shouldApproximateDate: true })),
   );
 
   const actual = feed.toJSON();
-
-  kv.close();
 
   assertEquals(actual, expected);
 });

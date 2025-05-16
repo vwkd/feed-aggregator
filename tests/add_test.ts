@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { createFeedAggregator } from "../src/main.ts";
 
+const PATH = "tests/add.db";
 const PREFIX = ["my", "example", "feed"];
 
 const VERSION = "https://jsonfeed.org/version/1.1";
@@ -36,15 +37,11 @@ Deno.test("add", async () => {
     items: [ITEM1, ITEM2, ITEM3],
   });
 
-  const kv = await Deno.openKv(":memory:");
-
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
+  using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
   await feed.add({ item: ITEM1 });
   await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
 
   const actual = feed.toJSON();
-
-  kv.close();
 
   assertEquals(actual, expected);
 });
@@ -56,17 +53,17 @@ Deno.test("persist", async () => {
     items: [ITEM1, ITEM2, ITEM3],
   });
 
-  const kv = await Deno.openKv(":memory:");
+  try {
+    using feed = await createFeedAggregator(PATH, PREFIX, INFO);
+    await feed.add({ item: ITEM1 });
+    await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
 
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
-  await feed.add({ item: ITEM1 });
-  await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
+    using feed2 = await createFeedAggregator(PATH, PREFIX, INFO);
 
-  const feed2 = await createFeedAggregator(kv, PREFIX, INFO);
+    const actual = feed2.toJSON();
 
-  const actual = feed2.toJSON();
-
-  kv.close();
-
-  assertEquals(actual, expected);
+    assertEquals(actual, expected);
+  } finally {
+    await Deno.remove(PATH);
+  }
 });
