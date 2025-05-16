@@ -21,11 +21,11 @@ JSON Feed aggregator
 ```js
 import { createFeedAggregator } from "@vwkd/feed-aggregator";
 
-const kv = await Deno.openKv(":memory:");
+const path = ":memory:";
 const prefix = ["my", "example", "feed"];
 
-const feed = await createFeedAggregator(
-  kv,
+using feed = await createFeedAggregator(
+  path,
   prefix,
   {
     title: "My Example Feed",
@@ -61,14 +61,6 @@ await feed.add(
 );
 
 const json = feed.toJSON();
-```
-
-- add [`@deno/kv`](https://www.npmjs.com/package/@deno/kv) package for runtimes other than Deno
-
-```js
-import { openKv } from "@deno/kv";
-
-const kv = await openKv(":memory:");
 ```
 
 ### Configure logging

@@ -36,7 +36,7 @@ const DENO_KV_MAX_BATCH_SIZE = 1000;
  * - beware: order of items in feed isn't guaranteed since database returns in lexicographical order of keys
  * - beware: manually filter out expired items since expiry is earliest time after which Deno KV deletes items, don't bother to persist deletion since Deno KV will delete eventually!
  */
-export class FeedAggregator {
+export class FeedAggregator implements Disposable {
   #initialized = false;
   #kv: Deno.Kv;
   #prefix: string[];
@@ -204,18 +204,20 @@ export class FeedAggregator {
   /**
    * Create new JSON Feed Aggregator
    *
-   * @param kv Deno KV store
+   * @param path path for Deno KV store
    * @param prefix prefix for keys
    * @param info info of feed
    * @param options options
    * @returns JSON Feed Aggregator
    */
   static async create(
-    kv: Deno.Kv,
+    path: string | undefined,
     prefix: string[],
     info: FeedInfo,
     options: Options = {},
   ): Promise<FeedAggregator> {
+    const kv = await Deno.openKv(path);
+
     const feedAggregator = new FeedAggregator(kv, prefix, info, options);
 
     await feedAggregator.#initialize();
@@ -380,6 +382,17 @@ export class FeedAggregator {
     feed.add(...this.#itemsStored.values().map(({ item }) => item));
 
     return feed.toJSON();
+  }
+
+  /**
+   * Dispose feed aggregator
+   *
+   * - closes database
+   */
+  [Symbol.dispose](): void {
+    this.#checkInitialized();
+
+    this.#kv.close();
   }
 }
 
