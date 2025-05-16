@@ -17,13 +17,9 @@ Deno.test("create", async () => {
     items: [],
   });
 
-  const kv = await Deno.openKv(":memory:");
-
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
+  using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
 
   const actual = feed.toJSON();
-
-  kv.close();
 
   assertEquals(actual, expected);
 });
