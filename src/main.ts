@@ -9,12 +9,13 @@ export type {
   TextItem,
 } from "@vwkd/feed";
 export type { AggregatorItem, Options, SharedDate } from "./types.ts";
-import { Feed, type FeedInfo } from "@vwkd/feed";
+import { Feed, type FeedInfo, type Item } from "@vwkd/feed";
 import { chunk } from "@std/collections";
 import type { AggregatorItem, Options, SharedDate } from "./types.ts";
 import {
   logAdd,
   logClean,
+  logGet,
   logRead,
   logRoot,
   logToJSON,
@@ -291,6 +292,26 @@ export class FeedAggregator {
     }
 
     await this.#write(itemsPending, now);
+  }
+
+  /**
+   * Get item from feed
+   *
+   * @param itemId ID of feed item
+   * @returns item or undefined if not found
+   */
+  get(itemId: string): Item | undefined {
+    this.#checkInitialized();
+
+    const now = this.#currentDate?.value || new Date();
+
+    logGet.debug(`Getting item with ID ${itemId} at ${now.toISOString()}`);
+
+    this.#clean(now);
+
+    return structuredClone(
+      this.#itemsStored.find(({ item: { id } }) => id === itemId)?.item,
+    );
   }
 
   /**
