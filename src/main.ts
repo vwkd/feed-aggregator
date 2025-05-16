@@ -16,6 +16,7 @@ import {
   logAdd,
   logClean,
   logGet,
+  logHas,
   logRead,
   logRoot,
   logToJSON,
@@ -312,6 +313,26 @@ export class FeedAggregator {
     return structuredClone(
       this.#itemsStored.find(({ item: { id } }) => id === itemId)?.item,
     );
+  }
+
+  /**
+   * Check if item is in feed
+   *
+   * @param itemId ID of feed item
+   * @returns `true` if item is in feed, `false` otherwise
+   */
+  has(itemId: string): boolean {
+    this.#checkInitialized();
+
+    const now = this.#currentDate?.value || new Date();
+
+    logHas.debug(
+      `Checking if item with ID ${itemId} is in feed at ${now.toISOString()}`,
+    );
+
+    this.#clean(now);
+
+    return this.#itemsStored.some(({ item: { id } }) => id === itemId);
   }
 
   /**
