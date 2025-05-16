@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { FeedAggregator } from "../src/main.ts";
+import { createFeedAggregator } from "../src/main.ts";
 
 const PREFIX = ["my", "example", "feed"];
 
@@ -38,11 +38,11 @@ const EXPECTED = JSON.stringify({
 Deno.test("add", async () => {
   const kv = await Deno.openKv(":memory:");
 
-  const feed = new FeedAggregator(kv, PREFIX, INFO);
+  const feed = await createFeedAggregator(kv, PREFIX, INFO);
   await feed.add({ item: ITEM1 });
   await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
 
-  const actual = await feed.toJSON();
+  const actual = feed.toJSON();
 
   kv.close();
 
@@ -52,13 +52,13 @@ Deno.test("add", async () => {
 Deno.test("persist", async () => {
   const kv = await Deno.openKv(":memory:");
 
-  const feed = new FeedAggregator(kv, PREFIX, INFO);
+  const feed = await createFeedAggregator(kv, PREFIX, INFO);
   await feed.add({ item: ITEM1 });
   await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
 
-  const feed2 = new FeedAggregator(kv, PREFIX, INFO);
+  const feed2 = await createFeedAggregator(kv, PREFIX, INFO);
 
-  const actual = await feed2.toJSON();
+  const actual = feed2.toJSON();
 
   kv.close();
 
