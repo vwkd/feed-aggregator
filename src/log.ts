@@ -27,10 +27,21 @@ export function createLogger(name: string): log.Logger {
 const logAdd = createLogger("add");
 const logClean = createLogger("clean");
 const logGet = createLogger("get");
+const logHas = createLogger("has");
 const logRead = createLogger("read");
 const logRoot = createLogger("root");
 const logToJSON = createLogger("toJSON");
 const logWrite = createLogger("write");
 log.rebuild();
 
-export { log, logAdd, logClean, logGet, logRead, logRoot, logToJSON, logWrite };
+export {
+  log,
+  logAdd,
+  logClean,
+  logGet,
+  logHas,
+  logRead,
+  logRoot,
+  logToJSON,
+  logWrite,
+};
