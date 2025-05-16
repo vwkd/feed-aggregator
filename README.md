@@ -19,12 +19,12 @@ JSON Feed aggregator
 ### Create feed
 
 ```js
-import { FeedAggregator } from "@vwkd/feed-aggregator";
+import { createFeedAggregator } from "@vwkd/feed-aggregator";
 
 const kv = await Deno.openKv(":memory:");
 const prefix = ["my", "example", "feed"];
 
-const feed = new FeedAggregator(
+const feed = await createFeedAggregator(
   kv,
   prefix,
   {
@@ -60,7 +60,7 @@ await feed.add(
   },
 );
 
-const json = await feed.toJSON();
+const json = feed.toJSON();
 ```
 
 - add [`@deno/kv`](https://www.npmjs.com/package/@deno/kv) package for runtimes other than Deno

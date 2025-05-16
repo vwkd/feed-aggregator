@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { delay } from "@std/async";
-import { FeedAggregator } from "../src/main.ts";
+import { createFeedAggregator } from "../src/main.ts";
 
 const DELAY_MS = 500;
 const PREFIX = ["my", "example", "feed"];
@@ -42,13 +42,13 @@ Deno.test("add", async () => {
 
   const kv = await Deno.openKv(":memory:");
 
-  const feed = new FeedAggregator(kv, PREFIX, INFO);
+  const feed = await createFeedAggregator(kv, PREFIX, INFO);
   await feed.add({ item: ITEM1, expireAt: dateInFuture });
   await feed.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, expireAt: dateInFuture })),
   );
 
-  const actual = await feed.toJSON();
+  const actual = feed.toJSON();
 
   kv.close();
 
@@ -66,7 +66,7 @@ Deno.test("persist", async () => {
 
   const kv = await Deno.openKv(":memory:");
 
-  const feed = new FeedAggregator(kv, PREFIX, INFO);
+  const feed = await createFeedAggregator(kv, PREFIX, INFO);
   await feed.add({ item: ITEM1, expireAt: dateInFuture });
   await feed.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, expireAt: dateInFuture })),
@@ -74,9 +74,9 @@ Deno.test("persist", async () => {
 
   await delay(DELAY_MS * 2);
 
-  const feed2 = new FeedAggregator(kv, PREFIX, INFO);
+  const feed2 = await createFeedAggregator(kv, PREFIX, INFO);
 
-  const actual = await feed2.toJSON();
+  const actual = feed2.toJSON();
 
   kv.close();
 
@@ -99,13 +99,13 @@ Deno.test("overwrite, equal", async () => {
 
   const kv = await Deno.openKv(":memory:");
 
-  const feed = new FeedAggregator(kv, PREFIX, INFO);
+  const feed = await createFeedAggregator(kv, PREFIX, INFO);
   await feed.add({ item: ITEM1, expireAt: dateInFuture });
   await feed.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, expireAt: dateInFuture })),
   );
 
-  const actual = await feed.toJSON();
+  const actual = feed.toJSON();
 
   assertEquals(actual, expected);
 
@@ -113,7 +113,7 @@ Deno.test("overwrite, equal", async () => {
 
   const dateInFuture2 = new Date(Date.now() + DELAY_MS * 3);
 
-  const feed2 = new FeedAggregator(kv, PREFIX, INFO);
+  const feed2 = await createFeedAggregator(kv, PREFIX, INFO);
   await feed2.add({ item: ITEM1, expireAt: dateInFuture2 });
   await feed2.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, expireAt: dateInFuture2 })),
@@ -121,13 +121,13 @@ Deno.test("overwrite, equal", async () => {
 
   await delay(DELAY_MS * 2);
 
-  const actual2 = await feed2.toJSON();
+  const actual2 = feed2.toJSON();
 
   assertEquals(actual2, expected);
 
   await delay(DELAY_MS * 2);
 
-  const actual3 = await feed2.toJSON();
+  const actual3 = feed2.toJSON();
 
   kv.close();
 
