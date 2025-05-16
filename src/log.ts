@@ -29,6 +29,7 @@ const logClean = createLogger("clean");
 const logGet = createLogger("get");
 const logHas = createLogger("has");
 const logRead = createLogger("read");
+const logRemove = createLogger("remove");
 const logRoot = createLogger("root");
 const logToJSON = createLogger("toJSON");
 const logWrite = createLogger("write");
@@ -41,6 +42,7 @@ export {
   logGet,
   logHas,
   logRead,
+  logRemove,
   logRoot,
   logToJSON,
   logWrite,

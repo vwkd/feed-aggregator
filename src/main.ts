@@ -18,6 +18,7 @@ import {
   logGet,
   logHas,
   logRead,
+  logRemove,
   logRoot,
   logToJSON,
   logWrite,
@@ -333,6 +334,36 @@ export class FeedAggregator {
     this.#clean(now);
 
     return this.#itemsStored.some(({ item: { id } }) => id === itemId);
+  }
+
+  /**
+   * Remove item from feed
+   *
+   * @param itemId ID of feed item
+   */
+  async remove(itemId: string): Promise<AggregatorItem | undefined> {
+    this.#checkInitialized();
+
+    const now = this.#currentDate?.value || new Date();
+
+    logRemove.debug(`Removing item with ID ${itemId} at ${now.toISOString()}`);
+
+    this.#clean(now);
+
+    const index = this.#itemsStored.findIndex(({ item: { id } }) =>
+      id === itemId
+    );
+
+    if (index == -1) {
+      return undefined;
+    }
+
+    const item = this.#itemsStored.splice(index, 1)[0];
+    const key = [...this.#prefix, ...(item.subprefix ?? []), item.item.id];
+
+    await this.#kv.delete(key);
+
+    return item;
   }
 
   /**
