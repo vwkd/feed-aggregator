@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { FeedAggregator } from "../src/main.ts";
+import { createFeedAggregator } from "../src/main.ts";
 
 const PREFIX = ["my", "example", "feed"];
 
@@ -19,9 +19,9 @@ Deno.test("create", async () => {
 
   const kv = await Deno.openKv(":memory:");
 
-  const feed = new FeedAggregator(kv, PREFIX, INFO);
+  const feed = await createFeedAggregator(kv, PREFIX, INFO);
 
-  const actual = await feed.toJSON();
+  const actual = feed.toJSON();
 
   kv.close();
 

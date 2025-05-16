@@ -46,12 +46,14 @@ export class FeedAggregator {
   /**
    * Create new JSON Feed Aggregator
    *
+   * - beware: don't call constructor directly, instead use factory function `createFeedAggregator`!
+   *
    * @param kv Deno KV store
    * @param prefix prefix for keys
    * @param info info of feed
    * @param options options
    */
-  constructor(
+  private constructor(
     kv: Deno.Kv,
     prefix: string[],
     info: FeedInfo,
@@ -65,6 +67,21 @@ export class FeedAggregator {
     this.#prefix = prefix;
     this.#info = info;
     this.#currentDate = currentDate;
+  }
+
+  /**
+   * Validate feed aggregator is initialized
+   *
+   * @throws {Error} if not initialized
+   */
+  #checkInitialized(): void {
+    if (!this.#initialized) {
+      throw new Error(
+        `Uninitialized instance. Don't call constructor directly. Instead use factory function 'createFeedAggregator'.`,
+      );
+    }
+
+    return;
   }
 
   /**
@@ -103,6 +120,19 @@ export class FeedAggregator {
 
     this.#itemsCached = itemsCached;
     this.#itemsAdded = itemsAdded;
+  }
+
+  /**
+   * Initialize feed aggregator
+   */
+  async #initialize(): Promise<void> {
+    const now = this.#currentDate?.value || new Date();
+
+    logRoot.debug(`Initializing feed aggregator at ${now.toISOString()}`);
+
+    await this.#read();
+
+    this.#clean(now);
   }
 
   /**
@@ -183,6 +213,28 @@ export class FeedAggregator {
   }
 
   /**
+   * Create new JSON Feed Aggregator
+   *
+   * @param kv Deno KV store
+   * @param prefix prefix for keys
+   * @param info info of feed
+   * @param options options
+   * @returns JSON Feed Aggregator
+   */
+  static async create(
+    kv: Deno.Kv,
+    prefix: string[],
+    info: FeedInfo,
+    options: Options = {},
+  ): Promise<FeedAggregator> {
+    const feedAggregator = new FeedAggregator(kv, prefix, info, options);
+
+    await feedAggregator.#initialize();
+
+    return feedAggregator;
+  }
+
+  /**
    * Add items to feed
    *
    * - ignores item if `expireAt` is in the past
@@ -200,13 +252,13 @@ export class FeedAggregator {
    * @throws {Error} if `shouldApproximateDate` is `true` but item already has published or modified date
    */
   async add(...items: AggregatorItem[]): Promise<void> {
+    this.#checkInitialized();
+
     const now = this.#currentDate?.value || new Date();
 
     logAdd.debug(
       `Adding item${items.length > 1 ? "s" : ""} at ${now.toISOString()}`,
     );
-
-    await this.#read();
 
     this.#clean(now);
 
@@ -311,16 +363,16 @@ export class FeedAggregator {
    *
    * @returns JSON of feed
    */
-  async toJSON(): Promise<string> {
+  toJSON(): string {
+    this.#checkInitialized();
+
     const now = this.#currentDate?.value || new Date();
 
     logToJSON.debug(`Getting feed as JSON at ${now.toISOString()}`);
 
-    await this.#read();
+    const feed = new Feed(this.#info);
 
     this.#clean(now);
-
-    const feed = new Feed(this.#info);
 
     feed.add(...this.#itemsCached.map(({ item }) => item));
     feed.add(...this.#itemsAdded.map(({ item }) => item));
@@ -328,3 +380,5 @@ export class FeedAggregator {
     return feed.toJSON();
   }
 }
+
+export const createFeedAggregator = FeedAggregator.create;

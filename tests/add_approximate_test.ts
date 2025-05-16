@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { delay } from "@std/async";
-import { FeedAggregator } from "../src/main.ts";
+import { createFeedAggregator } from "../src/main.ts";
 
 const DELAY_MS = 500;
 const PREFIX = ["my", "example", "feed"];
@@ -64,13 +64,13 @@ Deno.test("add", async () => {
 
   const kv = await Deno.openKv(":memory:");
 
-  const feed = new FeedAggregator(kv, PREFIX, INFO, { currentDate });
+  const feed = await createFeedAggregator(kv, PREFIX, INFO, { currentDate });
   await feed.add({ item: ITEM1, shouldApproximateDate: true });
   await feed.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, shouldApproximateDate: true })),
   );
 
-  const actual = await feed.toJSON();
+  const actual = feed.toJSON();
 
   kv.close();
 
@@ -92,26 +92,26 @@ Deno.test("overwrite, equal", async () => {
 
   const kv = await Deno.openKv(":memory:");
 
-  const feed = new FeedAggregator(kv, PREFIX, INFO, { currentDate });
+  const feed = await createFeedAggregator(kv, PREFIX, INFO, { currentDate });
   await feed.add({ item: ITEM1, shouldApproximateDate: true });
   await feed.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, shouldApproximateDate: true })),
   );
 
-  const actual = await feed.toJSON();
+  const actual = feed.toJSON();
 
   assertEquals(actual, expected);
 
   await delay(DELAY_MS * 2);
 
   currentDate.value = new Date();
-  const feed2 = new FeedAggregator(kv, PREFIX, INFO, { currentDate });
+  const feed2 = await createFeedAggregator(kv, PREFIX, INFO, { currentDate });
   await feed2.add({ item: ITEM1, shouldApproximateDate: true });
   await feed2.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, shouldApproximateDate: true })),
   );
 
-  const actual2 = await feed2.toJSON();
+  const actual2 = feed2.toJSON();
 
   kv.close();
 
@@ -133,13 +133,13 @@ Deno.test("overwrite, different", async () => {
 
   const kv = await Deno.openKv(":memory:");
 
-  const feed = new FeedAggregator(kv, PREFIX, INFO, { currentDate });
+  const feed = await createFeedAggregator(kv, PREFIX, INFO, { currentDate });
   await feed.add({ item: ITEM1, shouldApproximateDate: true });
   await feed.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, shouldApproximateDate: true })),
   );
 
-  const actual = await feed.toJSON();
+  const actual = feed.toJSON();
 
   assertEquals(actual, expected);
 
@@ -158,7 +158,7 @@ Deno.test("overwrite, different", async () => {
     })),
   });
 
-  const feed2 = new FeedAggregator(kv, PREFIX, INFO, { currentDate });
+  const feed2 = await createFeedAggregator(kv, PREFIX, INFO, { currentDate });
   await feed2.add({ item: ITEM1_NEW, shouldApproximateDate: true });
   await feed2.add(
     ...[ITEM2_NEW, ITEM3_NEW].map((item) => ({
@@ -167,7 +167,7 @@ Deno.test("overwrite, different", async () => {
     })),
   );
 
-  const actual2 = await feed2.toJSON();
+  const actual2 = feed2.toJSON();
 
   kv.close();
 
