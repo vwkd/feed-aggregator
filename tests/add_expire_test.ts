@@ -3,6 +3,7 @@ import { delay } from "@std/async";
 import { createFeedAggregator } from "../src/main.ts";
 
 const DELAY_MS = 500;
+const PATH = "tests/add_expire.db";
 const PREFIX = ["my", "example", "feed"];
 
 const VERSION = "https://jsonfeed.org/version/1.1";
@@ -40,17 +41,13 @@ Deno.test("add", async () => {
 
   const dateInFuture = new Date(Date.now() + DELAY_MS);
 
-  const kv = await Deno.openKv(":memory:");
-
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
+  using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
   await feed.add({ item: ITEM1, expireAt: dateInFuture });
   await feed.add(
     ...[ITEM2, ITEM3].map((item) => ({ item, expireAt: dateInFuture })),
   );
 
   const actual = feed.toJSON();
-
-  kv.close();
 
   assertEquals(actual, expected);
 });
@@ -64,21 +61,21 @@ Deno.test("persist", async () => {
 
   const dateInFuture = new Date(Date.now() + DELAY_MS);
 
-  const kv = await Deno.openKv(":memory:");
+  try {
+    using feed = await createFeedAggregator(PATH, PREFIX, INFO);
+    await feed.add({ item: ITEM1, expireAt: dateInFuture });
+    await feed.add(
+      ...[ITEM2, ITEM3].map((item) => ({ item, expireAt: dateInFuture })),
+    );
 
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
-  await feed.add({ item: ITEM1, expireAt: dateInFuture });
-  await feed.add(
-    ...[ITEM2, ITEM3].map((item) => ({ item, expireAt: dateInFuture })),
-  );
+    await delay(DELAY_MS * 2);
 
-  await delay(DELAY_MS * 2);
+    using feed2 = await createFeedAggregator(PATH, PREFIX, INFO);
 
-  const feed2 = await createFeedAggregator(kv, PREFIX, INFO);
+    const actual = feed2.toJSON();
 
-  const actual = feed2.toJSON();
-
-  kv.close();
-
-  assertEquals(actual, expected);
+    assertEquals(actual, expected);
+  } finally {
+    await Deno.remove(PATH);
+  }
 });

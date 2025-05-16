@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { createFeedAggregator } from "../src/main.ts";
 
+const PATH = "tests/remove.db";
 const PREFIX = ["my", "example", "feed"];
 const PREFIX2 = ["my2", "example", "feed"];
 
@@ -30,80 +31,70 @@ const ITEM3 = {
 };
 
 Deno.test("persist", async () => {
-  const kv = await Deno.openKv(":memory:");
+  try {
+    using feed = await createFeedAggregator(
+      PATH,
+      PREFIX,
+      INFO,
+    );
+    await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
 
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
-  await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
+    await feed.remove(ITEM2.id);
 
-  await feed.remove(ITEM2.id);
+    using feedActual = await createFeedAggregator(
+      PATH,
+      PREFIX,
+      INFO,
+    );
 
-  const feedActual = await createFeedAggregator(kv, PREFIX, INFO);
-
-  assertEquals(feedActual.toJSON(), feed.toJSON());
-
-  kv.close();
+    assertEquals(feedActual.toJSON(), feed.toJSON());
+  } finally {
+    await Deno.remove(PATH);
+  }
 });
 
 Deno.test("first", async () => {
-  const kv = await Deno.openKv(":memory:");
-
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
+  using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
   await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
 
   await feed.remove(ITEM1.id);
 
-  const feedExpected = await createFeedAggregator(kv, PREFIX2, INFO);
+  using feedExpected = await createFeedAggregator(":memory:", PREFIX2, INFO);
   await feedExpected.add(...[ITEM2, ITEM3].map((item) => ({ item })));
 
   assertEquals(feed.toJSON(), feedExpected.toJSON());
-
-  kv.close();
 });
 
 Deno.test("second", async () => {
-  const kv = await Deno.openKv(":memory:");
-
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
+  using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
   await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
 
   await feed.remove(ITEM2.id);
 
-  const feedExpected = await createFeedAggregator(kv, PREFIX2, INFO);
+  using feedExpected = await createFeedAggregator(":memory:", PREFIX2, INFO);
   await feedExpected.add(...[ITEM1, ITEM3].map((item) => ({ item })));
 
   assertEquals(feed.toJSON(), feedExpected.toJSON());
-
-  kv.close();
 });
-
 Deno.test("third", async () => {
-  const kv = await Deno.openKv(":memory:");
-
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
+  using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
   await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
 
   await feed.remove(ITEM3.id);
 
-  const feedExpected = await createFeedAggregator(kv, PREFIX2, INFO);
+  using feedExpected = await createFeedAggregator(":memory:", PREFIX2, INFO);
   await feedExpected.add(...[ITEM1, ITEM2].map((item) => ({ item })));
 
   assertEquals(feed.toJSON(), feedExpected.toJSON());
-
-  kv.close();
 });
-
 Deno.test("non-existent", async () => {
-  const kv = await Deno.openKv(":memory:");
-
-  const feed = await createFeedAggregator(kv, PREFIX, INFO);
+  using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
   await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
 
   await feed.remove("foo");
 
-  const feedExpected = await createFeedAggregator(kv, PREFIX2, INFO);
+  using feedExpected = await createFeedAggregator(":memory:", PREFIX2, INFO);
   await feedExpected.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
 
   assertEquals(feed.toJSON(), feedExpected.toJSON());
-
-  kv.close();
 });
