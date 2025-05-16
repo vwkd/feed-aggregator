@@ -10,7 +10,7 @@ export type {
 } from "@vwkd/feed";
 export type { AggregatorItem, Options, SharedDate } from "./types.ts";
 import { Feed, type FeedInfo, type Item } from "@vwkd/feed";
-import { chunk } from "@std/collections";
+import { type KvToolbox, openKvToolbox } from "@kitsonk/kv-toolbox";
 import type { AggregatorItem, Options, SharedDate } from "./types.ts";
 import {
   logAdd,
@@ -38,7 +38,7 @@ const DENO_KV_MAX_BATCH_SIZE = 1000;
  */
 export class FeedAggregator implements Disposable {
   #initialized = false;
-  #kv: Deno.Kv;
+  #kv: KvToolbox;
   #prefix: string[];
   #info: FeedInfo;
   #currentDate?: SharedDate;
@@ -55,7 +55,7 @@ export class FeedAggregator implements Disposable {
    * @param options options
    */
   private constructor(
-    kv: Deno.Kv,
+    kv: KvToolbox,
     prefix: string[],
     info: FeedInfo,
     options: Options = {},
@@ -179,16 +179,11 @@ export class FeedAggregator implements Disposable {
         expireIn: item.expireAt && (item.expireAt.getTime() - now.getTime()),
       }));
 
-    const itemsChunks = chunk(items, DENO_KV_MAX_BATCH_SIZE);
-
-    // beware: not guaranteed to be consistent between chunks!
-    for (const itemsChunk of itemsChunks) {
-      // note: `ok` property of result will always be `true` since transaction lacks `.check()`s
-      await this.#kv
-        .atomic()
-        .mutate(...itemsChunk)
-        .commit();
-    }
+    // note: `ok` property of result will always be `true` since transaction lacks `.check()`s
+    await this.#kv
+      .atomic()
+      .mutate(...items)
+      .commit();
 
     for (const item of itemsPending) {
       this.#itemsStored.set(item.item.id, item);
@@ -216,7 +211,7 @@ export class FeedAggregator implements Disposable {
     info: FeedInfo,
     options: Options = {},
   ): Promise<FeedAggregator> {
-    const kv = await Deno.openKv(path);
+    const kv = await openKvToolbox({ path });
 
     const feedAggregator = new FeedAggregator(kv, prefix, info, options);
 
