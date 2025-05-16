@@ -42,7 +42,7 @@ export class FeedAggregator {
   #prefix: string[];
   #info: FeedInfo;
   #currentDate?: SharedDate;
-  #itemsStored: AggregatorItem[] = [];
+  #itemsStored: Map<string, AggregatorItem> = new Map();
 
   /**
    * Create new JSON Feed Aggregator
@@ -96,21 +96,13 @@ export class FeedAggregator {
    * @param now current date
    */
   #clean(now: Date): void {
-    const itemStored = this.#itemsStored.filter(({ expireAt }) =>
-      !expireAt || expireAt > now
-    );
+    for (const [id, item] of this.#itemsStored.entries()) {
+      if (item.expireAt && item.expireAt <= now) {
+        logClean.debug(`Cleaning up expired item with ID ${id}`);
 
-    if (itemStored.length == this.#itemsStored.length) {
-      return;
+        this.#itemsStored.delete(id);
+      }
     }
-
-    logClean.debug(
-      `Cleaning up ${
-        this.#itemsStored.length - itemStored.length
-      } expired items`,
-    );
-
-    this.#itemsStored = itemStored;
   }
 
   /**
@@ -147,17 +139,17 @@ export class FeedAggregator {
       batchSize: DENO_KV_MAX_BATCH_SIZE,
     });
 
-    const entries = await Array.fromAsync(entriesIterator);
+    for await (const { value } of entriesIterator) {
+      const itemId = value.item.id;
 
-    const items = entries
-      .map((item) => item.value);
+      this.#itemsStored.set(itemId, value);
+    }
 
     logRead.debug(
-      `Read ${items.length} item${items.length == 1 ? "" : "s"} from database`,
+      `Read ${this.#itemsStored.size} item${
+        this.#itemsStored.size == 1 ? "" : "s"
+      } from database`,
     );
-
-    this.#itemsStored = items;
-
     this.#initialized = true;
   }
 
@@ -169,20 +161,23 @@ export class FeedAggregator {
    * @param itemsPending items to write
    * @param now current date
    */
-  async #write(itemsPending: AggregatorItem[], now: Date): Promise<void> {
+  async #write(
+    itemsPending: AggregatorItem[],
+    now: Date,
+  ): Promise<void> {
     if (itemsPending.length == 0) {
       return;
     }
 
     logWrite.debug(`Writing items to database`);
 
-    const items = itemsPending.map((item) => ({
-      key: [...this.#prefix, ...(item.subprefix ?? []), item.item.id],
-      value: item,
-      type: "set" as const,
-      expireIn: item.expireAt &&
-        (item.expireAt.getTime() - now.getTime()),
-    }));
+    const items = itemsPending
+      .map((item) => ({
+        key: [...this.#prefix, ...(item.subprefix ?? []), item.item.id],
+        value: item,
+        type: "set" as const,
+        expireIn: item.expireAt && (item.expireAt.getTime() - now.getTime()),
+      }));
 
     const itemsChunks = chunk(items, DENO_KV_MAX_BATCH_SIZE);
 
@@ -195,10 +190,14 @@ export class FeedAggregator {
         .commit();
     }
 
-    this.#itemsStored = [...this.#itemsStored, ...itemsPending];
+    for (const item of itemsPending) {
+      this.#itemsStored.set(item.item.id, item);
+    }
 
     logWrite.debug(
-      `Wrote ${items.length} item${items.length > 1 ? "s" : ""} to database`,
+      `Wrote ${itemsPending.length} item${
+        itemsPending.length > 1 ? "s" : ""
+      } to database`,
     );
   }
 
@@ -256,7 +255,7 @@ export class FeedAggregator {
 
       logAdd.debug(`Item`, item);
 
-      if (this.#itemsStored.some(({ item: { id } }) => id == item.id)) {
+      if (this.#itemsStored.has(item.id)) {
         throw new Error(`Already added`);
       }
 
@@ -311,9 +310,7 @@ export class FeedAggregator {
 
     this.#clean(now);
 
-    return structuredClone(
-      this.#itemsStored.find(({ item: { id } }) => id === itemId)?.item,
-    );
+    return structuredClone(this.#itemsStored.get(itemId)?.item);
   }
 
   /**
@@ -333,15 +330,16 @@ export class FeedAggregator {
 
     this.#clean(now);
 
-    return this.#itemsStored.some(({ item: { id } }) => id === itemId);
+    return this.#itemsStored.has(itemId);
   }
 
   /**
    * Remove item from feed
    *
    * @param itemId ID of feed item
+   * @returns `true` if item existed and has been removed, `false` if item doesn't exist
    */
-  async remove(itemId: string): Promise<AggregatorItem | undefined> {
+  async remove(itemId: string): Promise<boolean> {
     this.#checkInitialized();
 
     const now = this.#currentDate?.value || new Date();
@@ -350,20 +348,17 @@ export class FeedAggregator {
 
     this.#clean(now);
 
-    const index = this.#itemsStored.findIndex(({ item: { id } }) =>
-      id === itemId
-    );
+    const item = this.#itemsStored.get(itemId);
 
-    if (index == -1) {
-      return undefined;
+    if (!item) {
+      return false;
     }
 
-    const item = this.#itemsStored.splice(index, 1)[0];
     const key = [...this.#prefix, ...(item.subprefix ?? []), item.item.id];
-
     await this.#kv.delete(key);
 
-    return item;
+    // note: always `true` since item exists
+    return this.#itemsStored.delete(itemId);
   }
 
   /**
@@ -382,7 +377,7 @@ export class FeedAggregator {
 
     this.#clean(now);
 
-    feed.add(...this.#itemsStored.map(({ item }) => item));
+    feed.add(...this.#itemsStored.values().map(({ item }) => item));
 
     return feed.toJSON();
   }
