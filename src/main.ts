@@ -25,13 +25,13 @@ export { log as logger } from "./log.ts";
 const DENO_KV_MAX_BATCH_SIZE = 1000;
 
 /**
- * JSON Feed aggregator using Deno KV
+ * JSON Feed aggregator
  *
- * - creates JSON Feed with added items and remaining existing items from database
- * - caches added items with optional expiry if not already identical in database
- * - beware: existing items that aren't in added items anymore and have no expiry won't be deleted from database forever!
+ * - creates JSON Feed and persists it using Deno KV
+ * - persists pending items with optional expiry if not already identical in Deno KV
+ * - beware: items without expiry won't be ever deleted from Deno KV!
  * - beware: order of items in feed isn't guaranteed since database returns in lexicographical order of keys
- * - beware: expiry is earliest time after which Deno KV deletes items, filter out expired ones, don't bother to delete manually, Deno KV will delete eventually!
+ * - beware: manually filter out expired items since expiry is earliest time after which Deno KV deletes items, don't bother to persist deletion since Deno KV will delete eventually!
  */
 export class FeedAggregator {
   #initialized = false;
@@ -39,8 +39,7 @@ export class FeedAggregator {
   #prefix: string[];
   #info: FeedInfo;
   #currentDate?: SharedDate;
-  #itemsCached: AggregatorItem[] = [];
-  #itemsAdded: AggregatorItem[] = [];
+  #itemsStored: AggregatorItem[] = [];
 
   /**
    * Create new JSON Feed Aggregator
@@ -94,31 +93,21 @@ export class FeedAggregator {
    * @param now current date
    */
   #clean(now: Date): void {
-    const itemsCached = this.#itemsCached
-      .filter(({ expireAt }) => !expireAt || expireAt > now);
-    const itemsAdded = this.#itemsAdded
-      .filter(({ expireAt }) => !expireAt || expireAt > now);
+    const itemStored = this.#itemsStored.filter(({ expireAt }) =>
+      !expireAt || expireAt > now
+    );
 
-    if (
-      itemsCached.length == this.#itemsCached.length &&
-      itemsAdded.length == this.#itemsAdded.length
-    ) {
+    if (itemStored.length == this.#itemsStored.length) {
       return;
     }
 
     logClean.debug(
       `Cleaning up ${
-        this.#itemsCached.length - itemsCached.length
-      } expired cached items`,
-    );
-    logClean.debug(
-      `Cleaning up ${
-        this.#itemsAdded.length - itemsAdded.length
-      } expired added items`,
+        this.#itemsStored.length - itemStored.length
+      } expired items`,
     );
 
-    this.#itemsCached = itemsCached;
-    this.#itemsAdded = itemsAdded;
+    this.#itemsStored = itemStored;
   }
 
   /**
@@ -135,7 +124,7 @@ export class FeedAggregator {
   }
 
   /**
-   * Read cached items from database
+   * Read items from database
    *
    * - beware: might get expired items, run `clean()` before using!
    * - beware: must be called first!
@@ -164,27 +153,27 @@ export class FeedAggregator {
       `Read ${items.length} item${items.length == 1 ? "" : "s"} from database`,
     );
 
-    this.#itemsCached = items;
+    this.#itemsStored = items;
 
     this.#initialized = true;
   }
 
   /**
-   * Write added items to database
+   * Write items to database
    *
-   * - remove added items
    * - note: take `now` as argument to avoid slight time gap
    *
+   * @param itemsPending items to write
    * @param now current date
    */
-  async #write(now: Date): Promise<void> {
-    if (this.#itemsAdded.length == 0) {
+  async #write(itemsPending: AggregatorItem[], now: Date): Promise<void> {
+    if (itemsPending.length == 0) {
       return;
     }
 
-    logWrite.debug(`Writing added items to database`);
+    logWrite.debug(`Writing items to database`);
 
-    const items = this.#itemsAdded.map((item) => ({
+    const items = itemsPending.map((item) => ({
       key: [...this.#prefix, ...(item.subprefix ?? []), item.item.id],
       value: item,
       type: "set" as const,
@@ -203,8 +192,7 @@ export class FeedAggregator {
         .commit();
     }
 
-    this.#itemsCached = [...this.#itemsCached, ...this.#itemsAdded];
-    this.#itemsAdded = [];
+    this.#itemsStored = [...this.#itemsStored, ...itemsPending];
 
     logWrite.debug(
       `Wrote ${items.length} item${items.length > 1 ? "s" : ""} to database`,
@@ -238,7 +226,7 @@ export class FeedAggregator {
    *
    * - ignores item if `expireAt` is in the past
    * - if `shouldApproximateDate` uses current date as published date
-   * - store added items in database
+   * - store items in database
    *
    * @param items items to add
    * @throws {Error} if item with same ID is already in feed
@@ -255,6 +243,8 @@ export class FeedAggregator {
 
     this.#clean(now);
 
+    const itemsPending: AggregatorItem[] = [];
+
     for (
       const { item: _item, subprefix, expireAt, shouldApproximateDate } of items
     ) {
@@ -263,10 +253,7 @@ export class FeedAggregator {
 
       logAdd.debug(`Item`, item);
 
-      if (
-        this.#itemsCached.some(({ item: { id } }) => id == item.id) ||
-        this.#itemsAdded.some(({ item: { id } }) => id == item.id)
-      ) {
+      if (this.#itemsStored.some(({ item: { id } }) => id == item.id)) {
         throw new Error(`Already added`);
       }
 
@@ -295,7 +282,7 @@ export class FeedAggregator {
 
       logAdd.debug(`Adding`);
 
-      this.#itemsAdded.push({
+      itemsPending.push({
         item,
         subprefix,
         expireAt,
@@ -303,13 +290,11 @@ export class FeedAggregator {
       });
     }
 
-    await this.#write(now);
+    await this.#write(itemsPending, now);
   }
 
   /**
    * Serialize feed
-   *
-   * - add all items to feed and return it as JSON
    *
    * @returns JSON of feed
    */
@@ -324,8 +309,7 @@ export class FeedAggregator {
 
     this.#clean(now);
 
-    feed.add(...this.#itemsCached.map(({ item }) => item));
-    feed.add(...this.#itemsAdded.map(({ item }) => item));
+    feed.add(...this.#itemsStored.map(({ item }) => item));
 
     return feed.toJSON();
   }
