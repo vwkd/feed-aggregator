@@ -244,11 +244,10 @@ export class FeedAggregator implements Disposable {
 
     const itemsPending: AggregatorItem[] = [];
 
-    for (
-      const { item: _item, subprefix, expireAt, shouldApproximateDate } of items
-    ) {
+    for (const _item of items) {
       // clone to avoid modifying input arguments
-      const item = structuredClone(_item);
+      const { item, subprefix, expireAt, shouldApproximateDate } =
+        structuredClone(_item);
 
       logAdd.debug(`Item`, item);
 
