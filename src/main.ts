@@ -23,6 +23,7 @@ import {
   logToJSON,
   logWrite,
 } from "./log.ts";
+import { equal } from "@std/assert";
 export { log as logger } from "./log.ts";
 
 const DENO_KV_MAX_BATCH_SIZE = 1000;
@@ -307,6 +308,36 @@ export class FeedAggregator implements Disposable {
     this.#clean(now);
 
     return structuredClone(this.#itemsStored.get(itemId)?.item);
+  }
+
+  /**
+   * Get all items from feed
+   *
+   * @param subprefix subprefix of items
+   * @returns list of items
+   */
+  getAll(subprefix?: string[]): Item[] {
+    this.#checkInitialized();
+
+    const now = this.#currentDate?.value || new Date();
+
+    const prefix = [...this.#prefix, ...(subprefix ?? [])];
+
+    logGet.debug(
+      `Getting all items for prefix '${
+        prefix.join("/")
+      }' at ${now.toISOString()}`,
+    );
+
+    this.#clean(now);
+
+    return structuredClone(
+      Array.from(
+        this.#itemsStored.values().filter((item) =>
+          !subprefix || equal(item.subprefix, subprefix)
+        ).map(({ item }) => item),
+      ),
+    );
   }
 
   /**
