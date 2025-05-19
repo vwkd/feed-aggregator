@@ -389,6 +389,48 @@ export class FeedAggregator implements Disposable {
   }
 
   /**
+   * Remove all items from feed
+   *
+   * @param subprefix subprefix of items
+   * @returns list of commit results
+   */
+  removeAll(
+    subprefix?: string[],
+  ): Promise<(Deno.KvCommitResult | Deno.KvCommitError)[]> {
+    this.#checkInitialized();
+
+    const now = this.#currentDate?.value || new Date();
+
+    const prefix = [...this.#prefix, ...(subprefix ?? [])];
+
+    logRemove.debug(
+      `Removing all items for prefix '${
+        prefix.join("/")
+      }' at ${now.toISOString()}`,
+    );
+
+    this.#clean(now);
+
+    let transaction = this.#kv.atomic();
+
+    for (const [itemId, item] of this.#itemsStored.entries()) {
+      if (subprefix && !equal(item.subprefix, subprefix)) {
+        continue;
+      }
+
+      const key = [...prefix, itemId];
+      transaction = transaction.mutate({
+        key,
+        type: "delete",
+      });
+
+      this.#itemsStored.delete(itemId);
+    }
+
+    return transaction.commit();
+  }
+
+  /**
    * Serialize feed
    *
    * @returns JSON of feed
