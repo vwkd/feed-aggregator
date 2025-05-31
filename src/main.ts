@@ -225,12 +225,10 @@ export class FeedAggregator implements Disposable {
    * Add items to feed
    *
    * - ignores item if `expireAt` is in the past
-   * - if `shouldApproximateDate` uses current date as published date
    * - store items in database
    *
    * @param items items to add
    * @throws {Error} if item with same ID is already in feed
-   * @throws {Error} if `shouldApproximateDate` is `true` but item already has published or modified date
    */
   async add(...items: AggregatorItem[]): Promise<void> {
     this.#checkInitialized();
@@ -247,8 +245,7 @@ export class FeedAggregator implements Disposable {
 
     for (const _item of items) {
       // clone to avoid modifying input arguments
-      const { item, subprefix, expireAt, shouldApproximateDate } =
-        structuredClone(_item);
+      const { item, subprefix, expireAt } = structuredClone(_item);
 
       logAdd.debug(`Item`, item);
 
@@ -263,29 +260,12 @@ export class FeedAggregator implements Disposable {
         continue;
       }
 
-      // todo: remove `date_modified`?
-      if (
-        shouldApproximateDate && (item.date_published || item.date_modified)
-      ) {
-        throw new Error(
-          `Should approximate date but already has ${
-            item.date_published ? "published" : "modified"
-          } date`,
-        );
-      }
-
-      if (shouldApproximateDate) {
-        logAdd.debug(`Approximate published date using current date`);
-        item.date_published = now.toISOString();
-      }
-
       logAdd.debug(`Adding`);
 
       itemsPending.push({
         item,
         subprefix,
         expireAt,
-        shouldApproximateDate,
       });
     }
 

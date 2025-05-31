@@ -9,7 +9,6 @@ JSON Feed aggregator
 - stateful JSON feed
 - cache items using Deno KV
 - update existing items
-- approximate published and modified date as current date
 - expire items, e.g. feed of future events
 
 

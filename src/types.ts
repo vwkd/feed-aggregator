@@ -18,8 +18,6 @@ export interface AggregatorItem {
   subprefix?: string[];
   /** Expiry date of item */
   expireAt?: Date;
-  /** Should use current date as published or last modified date */
-  shouldApproximateDate?: boolean;
 }
 
 /**
