@@ -15,7 +15,7 @@ export interface AggregatorItem {
   /** Item */
   item: Item;
   /** Subprefix for key */
-  subprefix?: string[];
+  subprefix?: readonly string[];
   /** Expiry date of item */
   expireAt?: Date;
 }
