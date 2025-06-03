@@ -40,7 +40,7 @@ const DENO_KV_MAX_BATCH_SIZE = 1000;
 export class FeedAggregator implements Disposable {
   #initialized = false;
   #kv: KvToolbox;
-  #prefix: string[];
+  #prefix: readonly string[];
   #info: FeedInfo;
   #currentDate?: SharedDate;
   #itemsStored: Map<string, AggregatorItem> = new Map();
@@ -57,7 +57,7 @@ export class FeedAggregator implements Disposable {
    */
   private constructor(
     kv: KvToolbox,
-    prefix: string[],
+    prefix: readonly string[],
     info: FeedInfo,
     options: Options = {},
   ) {
@@ -208,7 +208,7 @@ export class FeedAggregator implements Disposable {
    */
   static async create(
     path: string | undefined,
-    prefix: string[],
+    prefix: readonly string[],
     info: FeedInfo,
     options: Options = {},
   ): Promise<FeedAggregator> {
@@ -296,7 +296,7 @@ export class FeedAggregator implements Disposable {
    * @param subprefix subprefix of items
    * @returns list of items
    */
-  getAll(subprefix?: string[]): Item[] {
+  getAll(subprefix?: readonly string[]): Item[] {
     this.#checkInitialized();
 
     const now = this.#currentDate?.value || new Date();
@@ -375,7 +375,7 @@ export class FeedAggregator implements Disposable {
    * @returns list of commit results
    */
   removeAll(
-    subprefix?: string[],
+    subprefix?: readonly string[],
   ): Promise<(Deno.KvCommitResult | Deno.KvCommitError)[]> {
     this.#checkInitialized();
 
