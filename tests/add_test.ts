@@ -61,3 +61,17 @@ Deno.test("persist", async () => {
     await Deno.remove(PATH);
   }
 });
+
+Deno.test("order", async () => {
+  try {
+    using feed = await createFeedAggregator(PATH, PREFIX, INFO);
+    await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
+    await feed.add({ item: ITEM1 });
+
+    const actual = feed.toJSON();
+
+    assertEquals(actual, EXPECTED);
+  } finally {
+    await Deno.remove(PATH);
+  }
+});

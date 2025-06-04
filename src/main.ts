@@ -34,7 +34,7 @@ const DENO_KV_MAX_BATCH_SIZE = 1000;
  * - creates JSON Feed and persists it using Deno KV
  * - persists pending items with optional expiry if not already identical in Deno KV
  * - beware: items without expiry won't be ever deleted from Deno KV!
- * - beware: order of items in feed isn't guaranteed since database returns in lexicographical order of keys
+ * - order of items in feed by lexicographical order of keys
  * - beware: manually filter out expired items since expiry is earliest time after which Deno KV deletes items, don't bother to persist deletion since Deno KV will delete eventually!
  */
 export class FeedAggregator implements Disposable {
@@ -155,6 +155,35 @@ export class FeedAggregator implements Disposable {
   }
 
   /**
+   * Sort function for items by lexicographical order of keys
+   *
+   * @param a first item
+   * @param b second item
+   * @returns negative number if key of `a` is before `b`, positive number if key of `b` is before `a`, zero if keys are equal
+   */
+  #sortByKeys(a: AggregatorItem, b: AggregatorItem): number {
+    const aKey = [...this.#prefix, ...(a.subprefix ?? []), a.item.id];
+    const bKey = [...this.#prefix, ...(b.subprefix ?? []), b.item.id];
+
+    if (aKey.length != bKey.length) {
+      return aKey.length - bKey.length;
+    }
+
+    // note: could as well use `bKey.length` since identical
+    for (let i = 0; i < aKey.length; i += 1) {
+      const keyPartOrdering = aKey[i].localeCompare(bKey[i]);
+
+      if (keyPartOrdering < 0) {
+        return -1;
+      } else if (keyPartOrdering > 0) {
+        return 1;
+      }
+    }
+
+    return 0;
+  }
+
+  /**
    * Write items to database
    *
    * - note: take `now` as argument to avoid slight time gap
@@ -186,9 +215,12 @@ export class FeedAggregator implements Disposable {
       .mutate(...items)
       .commit();
 
-    for (const item of itemsPending) {
-      this.#itemsStored.set(item.item.id, item);
-    }
+    const itemsSorted = [...this.#itemsStored.values(), ...itemsPending]
+      .sort(this.#sortByKeys.bind(this));
+
+    this.#itemsStored = new Map(
+      itemsSorted.map((item) => [item.item.id, item]),
+    );
 
     logWrite.debug(
       `Wrote ${itemsPending.length} item${

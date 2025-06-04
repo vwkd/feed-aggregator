@@ -41,7 +41,7 @@ Deno.test("all, first prefixed", async () => {
   await feed.add({ item: ITEM1, subprefix: SUBPREFIX });
   await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
 
-  assertEquals(feed.getAll(), [ITEM1, ITEM2, ITEM3]);
+  assertEquals(feed.getAll(), [ITEM2, ITEM3, ITEM1]);
 });
 
 Deno.test("all, second prefixed", async () => {
@@ -50,7 +50,7 @@ Deno.test("all, second prefixed", async () => {
   await feed.add({ item: ITEM2, subprefix: SUBPREFIX });
   await feed.add({ item: ITEM3 });
 
-  assertEquals(feed.getAll(), [ITEM1, ITEM2, ITEM3]);
+  assertEquals(feed.getAll(), [ITEM1, ITEM3, ITEM2]);
 });
 
 Deno.test("all, third prefixed", async () => {
@@ -68,7 +68,7 @@ Deno.test("all, first second prefixed", async () => {
   );
   await feed.add({ item: ITEM3 });
 
-  assertEquals(feed.getAll(), [ITEM1, ITEM2, ITEM3]);
+  assertEquals(feed.getAll(), [ITEM3, ITEM1, ITEM2]);
 });
 
 Deno.test("all, second third prefixed", async () => {
