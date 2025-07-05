@@ -4,61 +4,76 @@ import { INFO, ITEM1, ITEM2, ITEM3, PREFIX, SUBPREFIX } from "./constants.ts";
 
 Deno.test("all", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
+  const item1 = { item: ITEM1 };
+  const item2 = { item: ITEM2 };
+  const item3 = { item: ITEM3 };
+  await feed.add(...[item1, item2, item3]);
 
   assertEquals(feed.getAll(), [ITEM1, ITEM2, ITEM3]);
 });
 
 Deno.test("all, first prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add({ item: ITEM1, subprefix: SUBPREFIX });
-  await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
+  const item1 = { item: ITEM1, subprefix: SUBPREFIX };
+  const item2 = { item: ITEM2 };
+  const item3 = { item: ITEM3 };
+  await feed.add(item1);
+  await feed.add(...[item2, item3]);
 
   assertEquals(feed.getAll(), [ITEM2, ITEM3, ITEM1]);
 });
 
 Deno.test("all, second prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add({ item: ITEM1 });
-  await feed.add({ item: ITEM2, subprefix: SUBPREFIX });
-  await feed.add({ item: ITEM3 });
+  const item1 = { item: ITEM1 };
+  const item2 = { item: ITEM2, subprefix: SUBPREFIX };
+  const item3 = { item: ITEM3 };
+  await feed.add(item1);
+  await feed.add(item2);
+  await feed.add(item3);
 
   assertEquals(feed.getAll(), [ITEM1, ITEM3, ITEM2]);
 });
 
 Deno.test("all, third prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add(...[ITEM1, ITEM2].map((item) => ({ item })));
-  await feed.add({ item: ITEM3, subprefix: SUBPREFIX });
+  const item1 = { item: ITEM1 };
+  const item2 = { item: ITEM2 };
+  const item3 = { item: ITEM3, subprefix: SUBPREFIX };
+  await feed.add(...[item1, item2]);
+  await feed.add(item3);
 
   assertEquals(feed.getAll(), [ITEM1, ITEM2, ITEM3]);
 });
 
 Deno.test("all, first second prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add(
-    ...[ITEM1, ITEM2].map((item) => ({ item, subprefix: SUBPREFIX })),
-  );
-  await feed.add({ item: ITEM3 });
+  const item1 = { item: ITEM1, subprefix: SUBPREFIX };
+  const item2 = { item: ITEM2, subprefix: SUBPREFIX };
+  const item3 = { item: ITEM3 };
+  await feed.add(...[item1, item2]);
+  await feed.add(item3);
 
   assertEquals(feed.getAll(), [ITEM3, ITEM1, ITEM2]);
 });
 
 Deno.test("all, second third prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add({ item: ITEM1 });
-  await feed.add(
-    ...[ITEM2, ITEM3].map((item) => ({ item, subprefix: SUBPREFIX })),
-  );
+  const item1 = { item: ITEM1 };
+  const item2 = { item: ITEM2, subprefix: SUBPREFIX };
+  const item3 = { item: ITEM3, subprefix: SUBPREFIX };
+  await feed.add(item1);
+  await feed.add(...[item2, item3]);
 
   assertEquals(feed.getAll(), [ITEM1, ITEM2, ITEM3]);
 });
 
 Deno.test("all, all prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add(
-    ...[ITEM1, ITEM2, ITEM3].map((item) => ({ item, subprefix: SUBPREFIX })),
-  );
+  const item1 = { item: ITEM1, subprefix: SUBPREFIX };
+  const item2 = { item: ITEM2, subprefix: SUBPREFIX };
+  const item3 = { item: ITEM3, subprefix: SUBPREFIX };
+  await feed.add(...[item1, item2, item3]);
 
   assertEquals(feed.getAll(), [ITEM1, ITEM2, ITEM3]);
 });
@@ -71,60 +86,75 @@ Deno.test("all, empty", async () => {
 
 Deno.test("subprefix", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
+  const item1 = { item: ITEM1 };
+  const item2 = { item: ITEM2 };
+  const item3 = { item: ITEM3 };
+  await feed.add(...[item1, item2, item3]);
 
   assertEquals(feed.getAll(SUBPREFIX), []);
 });
 
 Deno.test("subprefix, first prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add({ item: ITEM1, subprefix: SUBPREFIX });
-  await feed.add(...[ITEM2, ITEM3].map((item) => ({ item })));
+  const item1 = { item: ITEM1, subprefix: SUBPREFIX };
+  const item2 = { item: ITEM2 };
+  const item3 = { item: ITEM3 };
+  await feed.add(item1);
+  await feed.add(...[item2, item3]);
 
   assertEquals(feed.getAll(SUBPREFIX), [ITEM1]);
 });
 
 Deno.test("subprefix, second prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add({ item: ITEM2, subprefix: SUBPREFIX });
-  await feed.add(...[ITEM1, ITEM3].map((item) => ({ item })));
+  const item1 = { item: ITEM1 };
+  const item2 = { item: ITEM2, subprefix: SUBPREFIX };
+  const item3 = { item: ITEM3 };
+  await feed.add(item2);
+  await feed.add(...[item1, item3]);
 
   assertEquals(feed.getAll(SUBPREFIX), [ITEM2]);
 });
 
 Deno.test("subprefix, third prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add(...[ITEM1, ITEM2].map((item) => ({ item })));
-  await feed.add({ item: ITEM3, subprefix: SUBPREFIX });
+  const item1 = { item: ITEM1 };
+  const item2 = { item: ITEM2 };
+  const item3 = { item: ITEM3, subprefix: SUBPREFIX };
+  await feed.add(...[item1, item2]);
+  await feed.add(item3);
 
   assertEquals(feed.getAll(SUBPREFIX), [ITEM3]);
 });
 
 Deno.test("subprefix, first second prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add(
-    ...[ITEM1, ITEM2].map((item) => ({ item, subprefix: SUBPREFIX })),
-  );
-  await feed.add({ item: ITEM3 });
+  const item1 = { item: ITEM1, subprefix: SUBPREFIX };
+  const item2 = { item: ITEM2, subprefix: SUBPREFIX };
+  const item3 = { item: ITEM3 };
+  await feed.add(...[item1, item2]);
+  await feed.add(item3);
 
   assertEquals(feed.getAll(SUBPREFIX), [ITEM1, ITEM2]);
 });
 
 Deno.test("subprefix, second third prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add({ item: ITEM1 });
-  await feed.add(
-    ...[ITEM2, ITEM3].map((item) => ({ item, subprefix: SUBPREFIX })),
-  );
+  const item1 = { item: ITEM1 };
+  const item2 = { item: ITEM2, subprefix: SUBPREFIX };
+  const item3 = { item: ITEM3, subprefix: SUBPREFIX };
+  await feed.add(item1);
+  await feed.add(...[item2, item3]);
 
   assertEquals(feed.getAll(SUBPREFIX), [ITEM2, ITEM3]);
 });
 
 Deno.test("subprefix, all prefixed", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
-  await feed.add(
-    ...[ITEM1, ITEM2, ITEM3].map((item) => ({ item, subprefix: SUBPREFIX })),
-  );
+  const item1 = { item: ITEM1, subprefix: SUBPREFIX };
+  const item2 = { item: ITEM2, subprefix: SUBPREFIX };
+  const item3 = { item: ITEM3, subprefix: SUBPREFIX };
+  await feed.add(...[item1, item2, item3]);
 
   assertEquals(feed.getAll(SUBPREFIX), [ITEM1, ITEM2, ITEM3]);
 });
