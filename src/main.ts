@@ -362,8 +362,8 @@ export class FeedAggregator implements Disposable {
 
       itemsPending.push({
         item,
-        subprefix,
-        expireAt,
+        ...(subprefix && { subprefix }),
+        ...(expireAt && { expireAt }),
       });
     }
 
