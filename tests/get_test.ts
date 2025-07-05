@@ -6,21 +6,21 @@ Deno.test("first", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
   await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
 
-  assertEquals(feed.get(ITEM1.id), ITEM1);
+  assertEquals(feed.get(ITEM1.id), { item: ITEM1 });
 });
 
 Deno.test("second", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
   await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
 
-  assertEquals(feed.get(ITEM2.id), ITEM2);
+  assertEquals(feed.get(ITEM2.id), { item: ITEM2 });
 });
 
 Deno.test("third", async () => {
   using feed = await createFeedAggregator(":memory:", PREFIX, INFO);
   await feed.add(...[ITEM1, ITEM2, ITEM3].map((item) => ({ item })));
 
-  assertEquals(feed.get(ITEM3.id), ITEM3);
+  assertEquals(feed.get(ITEM3.id), { item: ITEM3 });
 });
 
 Deno.test("non-existent", async () => {

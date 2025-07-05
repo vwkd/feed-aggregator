@@ -259,7 +259,7 @@ export class FeedAggregator implements Disposable {
    * @param itemId ID of feed item
    * @returns item or undefined if not found
    */
-  get(itemId: string): Item | undefined {
+  get(itemId: string): AggregatorItem | undefined {
     this.#checkInitialized();
 
     const now = this.#currentDate?.value || new Date();
@@ -268,7 +268,7 @@ export class FeedAggregator implements Disposable {
 
     this.#clean(now);
 
-    return this.#itemsStored.get(itemId)?.item;
+    return this.#itemsStored.get(itemId);
   }
 
   /**
@@ -277,7 +277,7 @@ export class FeedAggregator implements Disposable {
    * @param subprefix subprefix of items
    * @returns list of items
    */
-  getAll(subprefix?: readonly string[]): Item[] {
+  getAll(subprefix?: readonly string[]): AggregatorItem[] {
     this.#checkInitialized();
 
     const now = this.#currentDate?.value || new Date();
@@ -294,8 +294,7 @@ export class FeedAggregator implements Disposable {
 
     return Array.from(
       this.#itemsStored.values()
-        .filter((item) => !subprefix || equal(item.subprefix, subprefix))
-        .map(({ item }) => item),
+        .filter((item) => !subprefix || equal(item.subprefix, subprefix)),
     );
   }
 
