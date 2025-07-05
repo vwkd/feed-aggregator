@@ -42,6 +42,7 @@ export class FeedAggregator implements Disposable {
   #kv: KvToolbox;
   #prefix: readonly string[];
   #info: FeedInfo;
+  initialItems?: AggregatorItem[];
   #currentDate?: SharedDate;
   #itemsStored: Map<string, AggregatorItem> = new Map();
 
@@ -63,11 +64,12 @@ export class FeedAggregator implements Disposable {
   ) {
     logRoot.info(`Creating feed aggregator`, { prefix, info, options });
 
-    const { currentDate } = options;
+    const { initialItems, currentDate } = options;
 
     this.#kv = kv;
     this.#prefix = prefix;
     this.#info = info;
+    this.initialItems = initialItems;
     this.#currentDate = currentDate;
   }
 
@@ -126,6 +128,7 @@ export class FeedAggregator implements Disposable {
   /**
    * Read items from database
    *
+   * - beware: initial items might not match items from database!
    * - beware: might get expired items, run `clean()` before using!
    * - beware: must be called first!
    */
@@ -135,25 +138,35 @@ export class FeedAggregator implements Disposable {
       return;
     }
 
-    logRead.debug(`Reading items from database`);
+    if (this.initialItems) {
+      logRead.debug(`Using initial items`);
 
-    // beware: not guaranteed to be consistent between batches!
-    const entriesIterator = this.#kv.list<AggregatorItem>({
-      prefix: this.#prefix,
-    }, {
-      batchSize: DENO_KV_MAX_BATCH_SIZE,
-    });
+      for (const item of this.initialItems) {
+        const itemId = item.item.id;
 
-    for await (const { value } of entriesIterator) {
-      const itemId = value.item.id;
+        this.#itemsStored.set(itemId, item);
+      }
+    } else {
+      logRead.debug(`Reading items from database`);
 
-      this.#itemsStored.set(itemId, value);
+      // beware: not guaranteed to be consistent between batches!
+      const entriesIterator = this.#kv.list<AggregatorItem>({
+        prefix: this.#prefix,
+      }, {
+        batchSize: DENO_KV_MAX_BATCH_SIZE,
+      });
+
+      for await (const { value } of entriesIterator) {
+        const itemId = value.item.id;
+
+        this.#itemsStored.set(itemId, value);
+      }
     }
 
     logRead.debug(
       `Read ${this.#itemsStored.size} item${
         this.#itemsStored.size == 1 ? "" : "s"
-      } from database`,
+      }`,
     );
     this.#initialized = true;
   }

@@ -4,6 +4,12 @@ import type { Item } from "@vwkd/feed";
  * Feed options
  */
 export interface Options {
+  /** Initial items
+   *
+   * - avoids reading items from database
+   * - beware: doesn't manage mismatch with database, i.e. additional initial items won't be stored in database, additional database items won't be in feed!
+   */
+  initialItems?: AggregatorItem[];
   /** Current date */
   currentDate?: SharedDate;
 }
