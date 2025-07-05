@@ -9,7 +9,7 @@ export type {
   TextItem,
 } from "@vwkd/feed";
 export type { AggregatorItem, Options, SharedDate } from "./types.ts";
-import { Feed, type FeedInfo, type Item } from "@vwkd/feed";
+import { Feed, type FeedInfo } from "@vwkd/feed";
 import { type KvToolbox, openKvToolbox } from "@kitsonk/kv-toolbox";
 import type { AggregatorItem, Options, SharedDate } from "./types.ts";
 import {
@@ -310,7 +310,7 @@ export class FeedAggregator implements Disposable {
    * @param itemId ID of feed item
    * @returns item or undefined if not found
    */
-  get(itemId: string): Item | undefined {
+  get(itemId: string): AggregatorItem | undefined {
     this.#checkInitialized();
 
     const now = this.#currentDate?.value || new Date();
@@ -319,7 +319,7 @@ export class FeedAggregator implements Disposable {
 
     this.#clean(now);
 
-    return structuredClone(this.#itemsStored.get(itemId)?.item);
+    return structuredClone(this.#itemsStored.get(itemId));
   }
 
   /**
@@ -328,7 +328,7 @@ export class FeedAggregator implements Disposable {
    * @param subprefix subprefix of items
    * @returns list of items
    */
-  getAll(subprefix?: readonly string[]): Item[] {
+  getAll(subprefix?: readonly string[]): AggregatorItem[] {
     this.#checkInitialized();
 
     const now = this.#currentDate?.value || new Date();
@@ -347,7 +347,7 @@ export class FeedAggregator implements Disposable {
       Array.from(
         this.#itemsStored.values().filter((item) =>
           !subprefix || equal(item.subprefix, subprefix)
-        ).map(({ item }) => item),
+        ),
       ),
     );
   }
