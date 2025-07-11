@@ -1,9 +1,18 @@
 import type { Item } from "@vwkd/feed";
+import type { FeedAggregator } from "@vwkd/feed-aggregator";
 
 /**
  * Feed options
  */
 export interface Options {
+  /** Initial feed to copy items from
+   *
+   * - must be same or more general feed
+   * - avoids reading items from database
+   * - won't be mutated
+   * - beware: doesn't manage mismatch with database, i.e. additional initial items won't be stored in database, additional database items won't be in feed!
+   */
+  initialFeed?: FeedAggregator;
   /** Current date */
   currentDate?: SharedDate;
 }
